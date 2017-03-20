@@ -22,11 +22,7 @@ window.getPokemonStats = async function(i) {
             });
 
             response.stats.forEach(stat => {
-                stats_object = {
-                    'stat_name': stat.stat.name,
-                    'stat_base': stat.base_stat
-                };
-                stats.push(stats_object);
+                stats.push(stat.base_stat);
             });
 
             response.moves.forEach(move => {

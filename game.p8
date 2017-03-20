@@ -9,36 +9,22 @@ var_false = 0
 displays = {}
 displays.maindisplay = 0
 displays.statsdisplay = 1
+displays.pokemonName = ''
+displays.pokemonWeight = ''
+displays.pokemonHeight = ''
+displays.statsAttack = ''
+displays.statsDefense = ''
+displays.statsSpeed = ''
+displays.statsHP = ''
+displays.type1 = ''
+displays.type2 = ''
+
 
 state = {}
 state.currentpokemon = 1
 state.currentstate = displays.maindisplay
 state.currentsong = 0
-
-pokemonnames = {
-'bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon',
-'charizard', 'squirle', 'wartortle', 'blastoise', 'caterpie', 'metapod',
-'butterfree', 'weedle', 'kakuna', 'beedrill', 'pidgey', 'pidgeotto', 'pidgeot',
-'rattata', 'raticate', 'spearow', 'fearow', 'ekans', 'arbok', 'pikachu', 'raichu',
-'sandshrew', 'sandslash', 'nidoran  (f)', 'nidorina', 'nidoqueen', 'nidoran (m)', 'nidorino',
-'nidoking', 'clefairy', 'clefable', 'vulpix', 'ninetales', 'jigglypuff', 'wigglytuff',
-'zubat', 'golbat', 'oddish', 'gloom', 'vileplume', 'paras', 'parasect', 'venonat',
-'venomoth', 'diglett', 'dugtrio', 'meowth', 'persian', 'psyduck', 'golduck', 'mankey',
-'primeape', 'growlithe', 'arcanine','poliwag', 'poliwhirl', 'poliwrath', 'abra',
-'kadabra', 'alakazam', 'machop', 'machoke', 'machamp', 'bellsprout', 'weepinbell',
-'victreebel', 'tentacool', 'tentacruel', 'geodude', 'graveler', 'golem', 'ponyta',
-'rapidash', 'slowpoke', 'slowbro', 'magnemite', 'magneton', 'farfetchd', 'doduo',
-'dodrio', 'seel', 'dewgong', 'grimer', 'muk', 'shellder', 'cloyster', 'gastly',
-'haunter', 'gengar', 'onix', 'drowzee', 'hypno', 'krabby', 'kingler', 'voltorb',
-'electrode', 'exeggcute', 'exeggutor', 'cubone', 'marowak', 'hitmonlee',
-'hitmonchan', 'lickitung', 'koffing', 'weezing', 'rhyhorn', 'rhydon', 'chansey',
-'tangela', 'kangaskhan', 'horsea', 'seadra', 'goldeen', 'seaking', 'staryu',
-'starmie', 'mr-mime', 'scyther', 'jynx', 'electabuzz', 'magmar', 'pinsir',
-'tauros', 'magikarp', 'gyarados', 'lapras', 'ditto', 'eevee', 'vaporeon',
-'jolteon', 'flareon', 'porygon', 'omanyte', 'omastar', 'kabuto', 'kabutops',
-'aerodactyl', 'snorlax', 'articuno', 'zapdos', 'moltres', 'dratini', 'dragonair',
-'dragonite', 'mewtwo', 'mew'
-}
+state.pokemonNameReady = 0
 
 function wpin(slot, val)
   poke(gpio_base + slot, val)
@@ -48,34 +34,104 @@ function rpin(slot)
   return peek(gpio_base + slot)
 end
 
+function initPins()
+  wpin(0, state.currentsong)
+  wpin(1, state.currentpokemon)
+  wpin(2, state.pokemonNameReady)
+  wpin(3, 0)
+  wpin(4, 0)
+end
+
+function getPokeNameFromPins()
+  byteArray = {}
+  for i=8,8+rpin(2) do
+    add(byteArray, rpin(i))
+  end
+  return byteArray
+end
+
+function byteArrayToString(byteTable)
+  local alpha = 'abcdefghijklmnopqrstuvwxyz'
+  stringValue = ''
+  for i=1,#byteTable do
+    stringValue = stringValue..sub(alpha, byteTable[i]+1, byteTable[i]+1);
+  end
+  return stringValue
+end
+
+function getPokemonWeightFromPins()
+  numString = ''
+  if (rpin(3) == 1) then
+    numString = numString..rpin(19)
+  end
+  if (rpin(3) == 2) then
+    numString = numString..rpin(19)..'.'..rpin(20)
+  end
+  return numString
+end
+
+function getPokemonHeightFromPins()
+  numString = ''
+  if (rpin(4) == 1) then
+    numString = numString..rpin(21)
+  end
+  if (rpin(4) == 2) then
+    numString = numString..rpin(21)..'.'..rpin(22)
+  end
+  return numString
+end
+
+function setPokemonStatPins()
+  displays.statsAttack = rpin(44)
+  displays.statsDefense = rpin(43)
+  displays.statsSpeed = rpin(42)
+  displays.statsHP = rpin(45)
+  wpin(5, 0)
+end
+
+function setPokemonTypeA()
+  byteArray = {}
+  for i=23,23+rpin(6) do
+    add(byteArray, rpin(i))
+  end
+  displays.type1 = byteArrayToString(byteArray);
+end
+
+function setPokemonTypeB()
+  byteArray = {}
+  for i=32,32+rpin(7) do
+    add(byteArray, rpin(i))
+  end
+  displays.type2 = byteArrayToString(byteArray);
+end
+
 
 function drawstats()
   rect(0, 65, 50, 125)
   print('attack', 7, 72)
-  print('82', 38, 79)
+  print(displays.statsAttack, 38, 79)
   print('defense', 7, 85)
-  print('83', 38, 91)
+  print(displays.statsDefense, 38, 91)
   print('speed', 7, 99)
-  print('80', 38, 105)
-  print('special', 7, 113)
-  print('100', 38, 119)
+  print(displays.statsSpeed, 38, 105)
+  print('hp', 7, 113)
+  print(displays.statsHP, 38, 119)
 end
 
 function drawinfo()
-  print(pokemonnames[state.currentpokemon], 65, 5)
-  print("type1:       psn", 65, 23)
-  print("type2:       grs", 65, 36)
-  print("ht           2 m", 65, 49)
-  print("wt        100 kg", 65, 62)
+  print(displays.pokemonName, 65, 5)
+  print("type1:   "..displays.type1, 65, 23)
+  print("type2:   "..displays.type2, 65, 36)
+  print("ht:      "..displays.pokemonHeight..' m', 65, 49)
+  print("wt:      "..displays.pokemonWeight..' kg', 65, 62)
   print("growl          1", 65, 80)
   print("tackle         1", 65, 93)
   print("leech seed     7", 65, 106)
-  print("vine whip     13", 65, 119)
+  print("vine whip     13", 6;5, 119)
 end
 
 function _init()
-  wpin(0, state.currentsong)
-  wpin(1, state.currentpokemon)
+  initPins()
   reload(0x3200, 0x3200, 0x10ff, 'route_1.p8')
   reload(0x3100, 0x3100, 0xff, 'route_1.p8')
   music(0)
@@ -90,7 +146,7 @@ function _draw()
   if (state.currentstate == displays.maindisplay) then
     sspr(0,0,128,128,0,0,128,128)
     print(state.currentpokemon..'.', 39, 118)
-    print(pokemonnames[state.currentpokemon], 46 + (#(state.currentpokemon..'.') * 4), 118)
+    print(displays.pokemonName, 46 + (#(state.currentpokemon..'.') * 4), 118)
   end
   if (state.currentstate == displays.statsdisplay) then
     -- display stats information for current pokemon
@@ -128,22 +184,47 @@ function _update()
   if (rpin(0) != state.currentsong) then
     state.currentsong = rpin(0)
     if (state.currentsong == 0) then
-      -- printh("you are here")
       reload(0x3200, 0x3200, 0x10ff, 'route_1.p8')
       reload(0x3100, 0x3100, 0xff, 'route_1.p8')
       music(0)
     end
     if (state.currentsong == 1) then
-      -- printh("you are here")
       reload(0x3200, 0x3200, 0x10ff, 'newbark.p8')
       reload(0x3100, 0x3100, 0xff, 'newbark.p8')
       music(0)
     end
     if (state.currentsong == 2) then
-      -- printh("you are here")
       reload(0x3200, 0x3200, 0x10ff, 'littleroot.p8')
       reload(0x3100, 0x3100, 0xff, 'littleroot.p8')
+      music(0)
     end
+  end
+  if (rpin(2) != 0) then
+    displays.pokemonName = byteArrayToString(getPokeNameFromPins())
+    wpin(2, 0)
+  end
+  if (rpin(3) != 0) then
+    displays.pokemonWeight = getPokemonWeightFromPins()
+    wpin(3,0)
+  end
+  if (rpin(4) != 0) then
+    displays.pokemonHeight = getPokemonHeightFromPins()
+    wpin(4,0)
+  end
+  if (rpin(5) != 0) then
+    setPokemonStatPins()
+    wpin(5,0)
+  end
+  if (rpin(6) != 0) then
+    setPokemonTypeA()
+    if (rpin(7) == 0) then
+      displays.type2 = ''
+    end
+    wpin(6, 0)
+  end
+  if (rpin(7) != 0) then
+    setPokemonTypeB()
+    wpin(7,0)
   end
 end
 __gfx__

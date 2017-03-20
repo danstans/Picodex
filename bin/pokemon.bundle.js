@@ -85863,18 +85863,6 @@ function extend() {
 var Pokedex = __webpack_require__(153);
 var P = new Pokedex();
 
-function parseHexString(str) {
-    var result = [];
-    while (str.length >= 8) {
-        result.push(parseInt(str.substring(0, 8), 16));
-
-        str = str.substring(8, str.length);
-    }
-
-    return result;
-}
-
-
 window.getPokemonStats = async function(i) {
   var name, numberID, height, weight, sprite;
     var types = [];
@@ -85896,11 +85884,7 @@ window.getPokemonStats = async function(i) {
             });
 
             response.stats.forEach(stat => {
-                stats_object = {
-                    'stat_name': stat.stat.name,
-                    'stat_base': stat.base_stat
-                };
-                stats.push(stats_object);
+                stats.push(stat.base_stat);
             });
 
             response.moves.forEach(move => {
@@ -85924,7 +85908,7 @@ window.getPokemonStats = async function(i) {
       'PokemonID': numberID,
       'Height': height,
       'Weight': weight,
-      'Sprites': parseHexString(hexVals[numberID]),
+      'Sprites': hexVals[numberID],
       'Abilities': abilities,
       'Types': types,
       'Stats': stats,

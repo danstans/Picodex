@@ -1,9 +1,37 @@
 0 -> Song Number (Value of 0, 1 or 2)
 1 -> Pokemon Number (Value of 1 through 151)
 2 -> Pokemon Name Ready (Value of 0 or 1 (false true))
-3 -> Pokemon Height Ready (Value of 0 or 1 (false true))
-4 -> Pokemon Weight Ready (Value of 0 or 1 (false true))
+3 -> Pokemon Weight Ready (Value of 0 or 1 (false true))
+4 -> Pokemon Height Ready (Value of 0 or 1 (false true))
+5 -> Pokemon Stats Ready (Value of 0 or 1 (fase or true))
+6 -> Pokemon Types Ready (Value of 0 or val)
+7 -> Pokemon TypesB Ready (Value of 0 or vals)
+8-18 -> Pokemon Name (These values should consist of 0 - 25 )
+19-20 -> Weight
+21-22 -> Height
+23-31 -> First Type
+32-41 -> Second Type
+42-47 -> Stats
+48-92 -> moves
+93-127 -> image stuff...
 
 
 
-3-16 -> Pokemon Name (These values should consist of 0 - 25 )
+
+poison
+grass
+fire
+flying
+water
+bug
+normal
+electric
+ground
+fairy
+fighting
+psychic
+rock
+steel
+ice
+ghost
+dragon
