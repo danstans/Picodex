@@ -1,0 +1,11 @@
+{
+  "name": "Pokedex",
+  "version": "1.0.0",
+  "description": "A pokedex application for Cerebro",
+  "main": "index.js",
+  "author": "Daniel Stansberry",
+  "license": "MIT",
+  "dependencies": {
+    "pokedex-promise-v2": "^3.0.3"
+  }
+}
