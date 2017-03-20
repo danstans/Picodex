@@ -74,7 +74,8 @@ function drawinfo()
 end
 
 function _init()
-  wpin(0, 0)
+  wpin(0, state.currentsong)
+  wpin(1, state.currentpokemon)
   reload(0x3200, 0x3200, 0x10ff, 'route_1.p8')
   reload(0x3100, 0x3100, 0xff, 'route_1.p8')
   music(0)
@@ -105,6 +106,7 @@ function _update()
     state.currentpokemon = state.currentpokemon - 1
     if state.currentpokemon == 0 then state.currentpokemon = 151 end
     -- local images
+    wpin(1, state.currentpokemon)
     importstring = './samplepng/'..state.currentpokemon..'.png'
     import(importstring)
     reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
@@ -112,6 +114,7 @@ function _update()
   if (btnp(1)) then
     state.currentpokemon = (state.currentpokemon % 151) + 1
     -- local images
+    wpin(1, state.currentpokemon)
     importstring = './samplepng/'..state.currentpokemon..'.png'
     import(importstring)
     reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
@@ -439,4 +442,3 @@ __music__
 00 41424344
 00 41424344
 00 41424344
-
