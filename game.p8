@@ -9,22 +9,25 @@ var_false = 0
 displays = {}
 displays.maindisplay = 0
 displays.statsdisplay = 1
-displays.pokemonName = ''
-displays.pokemonWeight = ''
-displays.pokemonHeight = ''
-displays.statsAttack = ''
-displays.statsDefense = ''
-displays.statsSpeed = ''
-displays.statsHP = ''
+displays.pokemonname = ''
+displays.pokemonweight = ''
+displays.pokemonheight = ''
+displays.statsattack = ''
+displays.statsdefense = ''
+displays.statsspeed = ''
+displays.statshp = ''
 displays.type1 = ''
 displays.type2 = ''
+displays.move1 = ''
+displays.move2 = ''
+displays.move3 = ''
 
 
 state = {}
 state.currentpokemon = 1
 state.currentstate = displays.maindisplay
 state.currentsong = 0
-state.pokemonNameReady = 0
+state.pokemonnameready = 0
 
 function wpin(slot, val)
   poke(gpio_base + slot, val)
@@ -34,104 +37,153 @@ function rpin(slot)
   return peek(gpio_base + slot)
 end
 
-function initPins()
+function initpins()
   wpin(0, state.currentsong)
   wpin(1, state.currentpokemon)
-  wpin(2, state.pokemonNameReady)
+  wpin(2, state.pokemonnameready)
   wpin(3, 0)
   wpin(4, 0)
 end
 
-function getPokeNameFromPins()
-  byteArray = {}
+function getpokenamefrompins()
+  bytearray = {}
   for i=8,8+rpin(2) do
-    add(byteArray, rpin(i))
+    add(bytearray, rpin(i))
   end
-  return byteArray
+  return bytearray
 end
 
-function byteArrayToString(byteTable)
-  local alpha = 'abcdefghijklmnopqrstuvwxyz'
-  stringValue = ''
-  for i=1,#byteTable do
-    stringValue = stringValue..sub(alpha, byteTable[i]+1, byteTable[i]+1);
+function bytearraytostring(bytetable)
+  local alpha = 'abcdefghijklmnopqrstuvwxyz-'
+  stringvalue = ''
+  for i=1,#bytetable do
+    stringvalue = stringvalue..sub(alpha, bytetable[i]+1, bytetable[i]+1);
   end
-  return stringValue
+  return stringvalue
 end
 
-function getPokemonWeightFromPins()
-  numString = ''
+function getpokemonweightfrompins()
+  numstring = ''
   if (rpin(3) == 1) then
-    numString = numString..rpin(19)
+    numstring = numstring..rpin(19)
   end
   if (rpin(3) == 2) then
-    numString = numString..rpin(19)..'.'..rpin(20)
+    numstring = numstring..rpin(19)..'.'..rpin(20)
   end
-  return numString
+  return numstring
 end
 
-function getPokemonHeightFromPins()
-  numString = ''
+function getpokemonheightfrompins()
+  numstring = ''
   if (rpin(4) == 1) then
-    numString = numString..rpin(21)
+    numstring = numstring..rpin(21)
   end
   if (rpin(4) == 2) then
-    numString = numString..rpin(21)..'.'..rpin(22)
+    numstring = numstring..rpin(21)..'.'..rpin(22)
   end
-  return numString
+  return numstring
 end
 
-function setPokemonStatPins()
-  displays.statsAttack = rpin(44)
-  displays.statsDefense = rpin(43)
-  displays.statsSpeed = rpin(42)
-  displays.statsHP = rpin(45)
+function setpokemonstatpins()
+  displays.statsattack = rpin(44)
+  displays.statsdefense = rpin(43)
+  displays.statsspeed = rpin(42)
+  displays.statshp = rpin(45)
   wpin(5, 0)
 end
 
-function setPokemonTypeA()
-  byteArray = {}
+function setpokemontypea()
+  bytearray = {}
   for i=23,23+rpin(6) do
-    add(byteArray, rpin(i))
+    add(bytearray, rpin(i))
   end
-  displays.type1 = byteArrayToString(byteArray);
+  displays.type1 = bytearraytostring(bytearray);
 end
 
-function setPokemonTypeB()
-  byteArray = {}
+function setpokemontypeb()
+  bytearray = {}
   for i=32,32+rpin(7) do
-    add(byteArray, rpin(i))
+    add(bytearray, rpin(i))
   end
-  displays.type2 = byteArrayToString(byteArray);
+  displays.type2 = bytearraytostring(bytearray);
 end
+
+
+function getMovesFromPins(start, length)
+  bytearray = {}
+  for i=start,start+length do
+    add(bytearray, rpin(i))
+  end
+  return bytearray
+end
+
+function formatDisplayMove(name, level)
+  numSpaces = 15 - #(name..level)
+  space = ' '
+  spaceString = ''
+  for i=1, numSpaces do
+    spaceString = spaceString..space
+  end
+  return (name..spaceString..level)
+end
+
+function formatMove(moveNum)
+  if (moveNum == 1) then
+    moveLength = rpin(48)
+    moveLevel = rpin(61)
+    moveName = bytearraytostring(getMovesFromPins(49, moveLength-1))
+    displays.move1 =  formatDisplayMove(moveName, moveLevel)
+    if (rpin(62) == 0) then
+      displays.move2 = ''
+    end
+    if (rpin(77) == 0) then
+      displays.move3 = ''
+    end
+  end
+  if (moveNum == 2) then
+    moveLength = rpin(62)
+    moveLevel = rpin(76)
+    moveName = bytearraytostring(getMovesFromPins(63, moveLength-1))
+    displays.move2 = formatDisplayMove(moveName, moveLevel)
+    if (rpin(77) == 0) then
+      displays.move3 = ''
+    end
+  end
+  if (moveNum == 3) then
+    moveLength = rpin(77)
+    moveLevel = rpin(92)
+    moveName = bytearraytostring(getMovesFromPins(78, moveLength-1))
+    displays.move3 = formatDisplayMove(moveName, moveLevel)
+  end
+end
+
 
 
 function drawstats()
   rect(0, 65, 50, 125)
   print('attack', 7, 72)
-  print(displays.statsAttack, 38, 79)
+  print(displays.statsattack, 38, 79)
   print('defense', 7, 85)
-  print(displays.statsDefense, 38, 91)
+  print(displays.statsdefense, 38, 91)
   print('speed', 7, 99)
-  print(displays.statsSpeed, 38, 105)
+  print(displays.statsspeed, 38, 105)
   print('hp', 7, 113)
-  print(displays.statsHP, 38, 119)
+  print(displays.statshp, 38, 119)
 end
 
 function drawinfo()
-  print(displays.pokemonName, 65, 5)
+  print(displays.pokemonname, 65, 5)
   print("type1:   "..displays.type1, 65, 23)
   print("type2:   "..displays.type2, 65, 36)
-  print("ht:      "..displays.pokemonHeight..' m', 65, 49)
-  print("wt:      "..displays.pokemonWeight..' kg', 65, 62)
-  print("growl          1", 65, 80)
-  print("tackle         1", 65, 93)
-  print("leech seed     7", 65, 106)
-  print("vine whip     13", 6;5, 119)
+  print("ht:      "..displays.pokemonheight..' m', 65, 49)
+  print("wt:      "..displays.pokemonweight..' kg', 65, 62)
+  print(displays.move1, 65, 93)
+  print(displays.move2, 65, 106)
+  print(displays.move3, 65, 119)
 end
 
 function _init()
-  initPins()
+  initpins()
   reload(0x3200, 0x3200, 0x10ff, 'route_1.p8')
   reload(0x3100, 0x3100, 0xff, 'route_1.p8')
   music(0)
@@ -146,7 +198,7 @@ function _draw()
   if (state.currentstate == displays.maindisplay) then
     sspr(0,0,128,128,0,0,128,128)
     print(state.currentpokemon..'.', 39, 118)
-    print(displays.pokemonName, 46 + (#(state.currentpokemon..'.') * 4), 118)
+    print(displays.pokemonname, 46 + (#(state.currentpokemon..'.') * 4), 118)
   end
   if (state.currentstate == displays.statsdisplay) then
     -- display stats information for current pokemon
@@ -200,31 +252,43 @@ function _update()
     end
   end
   if (rpin(2) != 0) then
-    displays.pokemonName = byteArrayToString(getPokeNameFromPins())
+    displays.pokemonname = bytearraytostring(getpokenamefrompins())
     wpin(2, 0)
   end
   if (rpin(3) != 0) then
-    displays.pokemonWeight = getPokemonWeightFromPins()
+    displays.pokemonweight = getpokemonweightfrompins()
     wpin(3,0)
   end
   if (rpin(4) != 0) then
-    displays.pokemonHeight = getPokemonHeightFromPins()
+    displays.pokemonheight = getpokemonheightfrompins()
     wpin(4,0)
   end
   if (rpin(5) != 0) then
-    setPokemonStatPins()
+    setpokemonstatpins()
     wpin(5,0)
   end
   if (rpin(6) != 0) then
-    setPokemonTypeA()
+    setpokemontypea()
     if (rpin(7) == 0) then
       displays.type2 = ''
     end
     wpin(6, 0)
   end
   if (rpin(7) != 0) then
-    setPokemonTypeB()
+    setpokemontypeb()
     wpin(7,0)
+  end
+  if (rpin(49) != 0) then
+    formatMove(1)
+    wpin(49, 0)
+  end
+  if (rpin(62) != 0) then
+    formatMove(2, rpin(62), rpin(63), rpin(78))
+    wpin(62, 0)
+  end
+  if (rpin(77) != 0) then
+    formatMove(3, rpin(77), rpin(78), rpin(92))
+    wpin(77, 0)
   end
 end
 __gfx__

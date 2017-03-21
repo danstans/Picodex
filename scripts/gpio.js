@@ -31,6 +31,56 @@ function typesToByteArray(types) {
     return byteArray
 }
 
+function setUpMovesArrays(moves) {
+  var movesOrder = []
+  var levelOrder = []
+  var sortedLists = []
+  var numToGet = 3
+  if (moves.length < numToGet) numToGet = moves.length
+  for (var i = 0; i < numToGet; i++){
+    levelOrder[i] = moves[i].move_level;
+    movesOrder[i] = nameToByteArray(moves[i].move_name);
+  }
+  sortedLists = sortArrays(movesOrder, levelOrder);
+  movesOrder = sortedLists[0];
+  levelOrder = sortedLists[1];
+  return [movesOrder, levelOrder]
+}
+
+
+function sendMovesToLua(moves) {
+  var names = moves[0];
+  var levels = moves[1];
+  var namePins = [49, 63, 78]
+  var levelPins = [61, 76, 92]
+  var readyPins = [48, 62, 77]
+  names.forEach((name, val) => {
+    for (nameVal in name) {
+      var pinVal = parseInt(nameVal) + namePins[val];
+      var sendVal = name[nameVal]
+      if (sendVal == -1) sendVal = 26
+      pico8_gpio[pinVal] = sendVal
+    }
+    pico8_gpio[readyPins[val]] = name.length
+    pico8_gpio[levelPins[val]] = levels[val]
+  });
+}
+
+function sortArrays(moves,levels) {
+  for(var i = 1; i < levels.length; ++i) {
+    var temp = levels[i];
+    var tempMove = moves[i];
+    var j = i - 1;
+    for(; j >= 0 && levels[j] > temp; --j) {
+      levels[j+1] = levels[j];
+      moves[j+1] = moves[j]
+    }
+    levels[j+1] = temp;
+    moves[j+1] = tempMove;
+  }
+  return [moves, levels]
+}
+
 function sendNameToLua(ByteArray) {
     for (var i = 0; i < ByteArray.length; i++) {
         pico8_gpio[i + 8] = ByteArray[i];
@@ -91,11 +141,12 @@ function onRender() {
             var weightByteArray = weightToByteArray(pokemon.Weight);
             var heightByteArray = weightToByteArray(pokemon.Height);
             var typesByteArray = typesToByteArray(pokemon.Types);
-            var moves = pokemon.Moves
+            var movesByteArray = setUpMovesArrays(pokemon.Moves)
             sendNameToLua(nameByteArray);
             sendWeightToLua(weightByteArray);
             sendHeightToLua(heightByteArray);
-            sendStatsToLua(pokemon.Stats)
+            sendStatsToLua(pokemon.Stats);
+            sendMovesToLua(movesByteArray);
             sendTypesToLua(typesByteArray);
         });
 

@@ -12,7 +12,17 @@
 23-31 -> First Type
 32-41 -> Second Type
 42-47 -> Stats
-48-92 -> moves
+48 -> Move 1 Ready (value of 0 or value)
+49-60 -> move1 name
+61 -> move1 level
+62 -> Move 2 Ready (value of 0 or value)
+63-75 -> move2 name
+76 -> move2 level
+77-> move3 Ready (value of 0 or value)
+78-91 -> move3 name
+92 -> move3 level
+
+
 93-127 -> image stuff...
 
 
