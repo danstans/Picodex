@@ -173,24 +173,53 @@ end
 
 function drawinfo()
   print(displays.pokemonname, 65, 5)
-  print("type1:   "..displays.type1, 65, 23)
-  print("type2:   "..displays.type2, 65, 36)
-  print("ht:      "..displays.pokemonheight..' m', 65, 49)
-  print("wt:      "..displays.pokemonweight..' kg', 65, 62)
+  print(formatTypes(1, displays.type1), 65, 23)
+  print(formatTypes(2, displays.type2), 65, 36)
+  print("ht:    "..displays.pokemonheight..' m', 65, 49)
+  print("wt:    "..displays.pokemonweight..' kg', 65, 62)
   print(displays.move1, 65, 93)
   print(displays.move2, 65, 106)
   print(displays.move3, 65, 119)
 end
 
+function formatTypes(type, val)
+  if (type == 1) then
+    numspaces = 15 - #("type1:"..val)
+    space = ' '
+    spaceString = ''
+    for i=1, numspaces do
+      spaceString = spaceString..space
+    end
+    return "type1:"..spaceString..val
+  end
+  if (type == 2) then
+    numspaces = 15 - #("type2:"..val)
+    space = ' '
+    spaceString = ''
+    for i=1, numspaces do
+      spaceString = spaceString..space
+    end
+    if (val == "") return ""
+    return "type2:"..spaceString..val
+  end
+end
+
+function formatDisplayMove(name, level)
+  numSpaces = 15 - #(name..level)
+  space = ' '
+  spaceString = ''
+  for i=1, numSpaces do
+    spaceString = spaceString..space
+  end
+  return (name..spaceString..level)
+end
+
 function _init()
   initpins()
-  reload(0x3200, 0x3200, 0x10ff, 'route_1.p8')
-  reload(0x3100, 0x3100, 0xff, 'route_1.p8')
-  music(0)
   -- poke(gpio_base+127, 254)
-  importstring = './samplepng/'..state.currentpokemon..'.png'
-  import(importstring)
-  reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
+  -- importstring = './samplepng/'..state.currentpokemon..'.png'
+  -- import(importstring)
+  -- reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
 end
 
 function _draw()
@@ -215,17 +244,17 @@ function _update()
     if state.currentpokemon == 0 then state.currentpokemon = 151 end
     -- local images
     wpin(1, state.currentpokemon)
-    importstring = './samplepng/'..state.currentpokemon..'.png'
-    import(importstring)
-    reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
+    -- importstring = './samplepng/'..state.currentpokemon..'.png'
+    -- import(importstring)
+    -- reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
   end
   if (btnp(1)) then
     state.currentpokemon = (state.currentpokemon % 151) + 1
     -- local images
     wpin(1, state.currentpokemon)
-    importstring = './samplepng/'..state.currentpokemon..'.png'
-    import(importstring)
-    reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
+    -- importstring = './samplepng/'..state.currentpokemon..'.png'
+    -- import(importstring)
+    -- reload(0x0,0x0, 0x2000) -- update ram with new sprites in cart
   end
   if (btnp(2)) then
     state.currentstate = displays.statsdisplay
