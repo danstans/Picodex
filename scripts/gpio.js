@@ -1,6 +1,8 @@
 var pico8_gpio = new Array(128);
 var lastPokemon = 0
 var currentPokemon = pico8_gpio[1];
+var pokemonCacheArray = []
+
 
 function nameToByteArray(pokeString) {
     var alpha = 'abcdefghijklmnopqrstuvwxyz'
@@ -129,11 +131,32 @@ function sendTypesToLua(ByteArray) {
     }
 }
 
+function sendSpriteToLua(ByteArray) {
+  var remainingIterations = ByteArray.length / 32
+  pico8_gpio[94] = remainingIterations;
+  pico8_gpio[93] = 0;
+  totalBytesSent = 0
+  while (remainingIterations > 0) {
+    bytesSent = 0;
+    for (var i = 95; i < 127; i++){
+      pico8_gpio[i] = ByteArray[32*(ByteArray.length - remainingIterations) + (i -95)]
+      bytesSent++;
+    }
+    totalBytesSent += bytesSent
+    pico8_gpio[93] = 1
+    pico8_gpio[94] = --remainingIterations;
+    while(pico8_gpio[93] == 1) {
+
+    }
+  }
+  console.log(`Sent a total of ${totalBytesSent} bytes`)
+}
+
+
 function onRender() {
     currentPokemon = pico8_gpio[1];
     if (lastPokemon != currentPokemon) {
         lastPokemon = currentPokemon
-        // console.log(`The current pokemon value is ${currentPokemon}`);
         var pokemonPromise = getPokemonStats(currentPokemon);
         pokemonPromise.then(pokemon => {
             // console.log(pokemon)
@@ -141,17 +164,20 @@ function onRender() {
             var weightByteArray = weightToByteArray(pokemon.Weight);
             var heightByteArray = weightToByteArray(pokemon.Height);
             var typesByteArray = typesToByteArray(pokemon.Types);
-            var movesByteArray = setUpMovesArrays(pokemon.Moves)
+            var movesByteArray = setUpMovesArrays(pokemon.Moves);
+            var spritesByteArray = pokemon.Sprites;
             sendNameToLua(nameByteArray);
             sendWeightToLua(weightByteArray);
             sendHeightToLua(heightByteArray);
             sendStatsToLua(pokemon.Stats);
             sendMovesToLua(movesByteArray);
             sendTypesToLua(typesByteArray);
+            sendSpriteToLua(spritesByteArray);
         });
-
     }
     window.requestAnimationFrame(onRender);
 }
+
+
 
 window.requestAnimationFrame(onRender);

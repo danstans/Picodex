@@ -45,6 +45,12 @@ function initpins()
   wpin(4, 0)
 end
 
+function playsong()
+  reload(0x3200, 0x3200, 0x10ff, 'route_1.p8')
+  reload(0x3100, 0x3100, 0xff, 'route_1.p8')
+  music(0)
+end
+
 function getpokenamefrompins()
   bytearray = {}
   for i=8,8+rpin(2) do
@@ -157,6 +163,9 @@ function formatMove(moveNum)
   end
 end
 
+function getPokemonSprite()
+    printh(rpin(94));
+end
 
 
 function drawstats()
@@ -216,6 +225,7 @@ end
 
 function _init()
   initpins()
+  playsong()
   -- poke(gpio_base+127, 254)
   -- importstring = './samplepng/'..state.currentpokemon..'.png'
   -- import(importstring)
@@ -318,6 +328,11 @@ function _update()
   if (rpin(77) != 0) then
     formatMove(3, rpin(77), rpin(78), rpin(92))
     wpin(77, 0)
+  end
+  if (rpin(94) != 0) then
+    getPokemonSprite()
+    printh(rpin(94))
+    wpin(93, 0)
   end
 end
 __gfx__

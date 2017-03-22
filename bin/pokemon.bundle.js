@@ -85908,7 +85908,7 @@ window.getPokemonStats = async function(i) {
       'PokemonID': numberID,
       'Height': height,
       'Weight': weight,
-      'Sprites': hexVals[numberID],
+      'Sprites': pokebytesarray[numberID - 1],
       'Abilities': abilities,
       'Types': types,
       'Stats': stats,

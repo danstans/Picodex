@@ -21,9 +21,11 @@
 77-> move3 Ready (value of 0 or value)
 78-91 -> move3 name
 92 -> move3 level
+93 -> Javascript or Lua turn (0 if javascript turn, 1 if lua turn)
+94 -> Value either 0, or set to 94, 93, 92. Number of iterations remaining
+95 - 127
 
 
-93-127 -> image stuff...
 
 
 
