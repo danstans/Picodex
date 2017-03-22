@@ -9,6 +9,7 @@ var_false = 0
 displays = {}
 displays.maindisplay = 0
 displays.statsdisplay = 1
+displays.textColor = 6
 displays.pokemonname = ''
 displays.pokemonweight = ''
 displays.pokemonheight = ''
@@ -171,24 +172,24 @@ end
 function drawstats()
   rect(0, 65, 50, 125)
   print('attack', 7, 72)
-  print(displays.statsattack, 38, 79)
+  print(displays.statsattack, 38, 79, displays.textColor)
   print('defense', 7, 85)
-  print(displays.statsdefense, 38, 91)
+  print(displays.statsdefense, 38, 91, displays.textColor)
   print('speed', 7, 99)
-  print(displays.statsspeed, 38, 105)
+  print(displays.statsspeed, 38, 105, displays.textColor)
   print('hp', 7, 113)
-  print(displays.statshp, 38, 119)
+  print(displays.statshp, 38, 119, displays.textColor)
 end
 
 function drawinfo()
-  print(displays.pokemonname, 65, 5)
-  print(formatTypes(1, displays.type1), 65, 23)
-  print(formatTypes(2, displays.type2), 65, 36)
-  print("ht:    "..displays.pokemonheight..' m', 65, 49)
-  print("wt:    "..displays.pokemonweight..' kg', 65, 62)
-  print(displays.move1, 65, 93)
-  print(displays.move2, 65, 106)
-  print(displays.move3, 65, 119)
+  print(displays.pokemonname, 65, 5, displays.textColor)
+  print(formatTypes(1, displays.type1), 65, 23, displays.textColor)
+  print(formatTypes(2, displays.type2), 65, 36, displays.textColor)
+  print("ht:    "..displays.pokemonheight..' m', 65, 49, displays.textColor)
+  print("wt:    "..displays.pokemonweight..' kg', 65, 62, displays.textColor)
+  print(displays.move1, 65, 93, displays.textColor)
+  print(displays.move2, 65, 106, displays.textColor)
+  print(displays.move3, 65, 119, displays.textColor)
 end
 
 function formatTypes(type, val)
@@ -223,6 +224,44 @@ function formatDisplayMove(name, level)
   return (name..spaceString..level)
 end
 
+function getColorBasedOnType()
+  if (displays.type1 == 'poison') then
+    return 2
+  elseif (displays.type1 == 'grass') then
+    return 11
+  elseif (displays.type1 == 'fire') then
+    return 8
+  elseif (displays.type1 == 'flying') then
+    return 6
+  elseif (displays.type1 == 'water') then
+    return 1
+  elseif (displays.type1 == 'bug') then
+    return 3
+  elseif (displays.type1 == 'normal') then
+    return 15
+  elseif (displays.type1 == 'electric') then
+    return 10
+  elseif (displays.type1 == 'ground') then
+    return 4
+  elseif (displays.type1 == 'fairy') then
+    return 14
+  elseif (displays.type1 == 'fighting') then
+    return 5
+  elseif (displays.type1 == 'psychic') then
+    return 2
+  elseif (displays.type1 == 'rock') then
+    return 4
+  elseif (displays.type1 == 'steel') then
+    return 5
+  elseif (displays.type1 == 'ice') then
+    return 12
+  elseif (displays.type1 == 'ghost') then
+    return 0
+  elseif (displays.type1 == 'dragon') then
+    return 6
+  end
+end
+
 function _init()
   initpins()
   playsong()
@@ -233,16 +272,20 @@ function _init()
 end
 
 function _draw()
-  cls()
+  color = getColorBasedOnType()
+  cls(color)
+  displays.textColor = 6
+  if (color == 6) then
+    displays.textColor = 0
+  end
   if (state.currentstate == displays.maindisplay) then
-    sspr(0,0,128,128,0,0,128,128)
-    print(state.currentpokemon..'.', 39, 118)
-    print(displays.pokemonname, 46 + (#(state.currentpokemon..'.') * 4), 118)
+    print(state.currentpokemon..'.', 39, 118, displays.textColor)
+    print(displays.pokemonname, 46 + (#(state.currentpokemon..'.') * 4), 118, displays.textColor)
   end
   if (state.currentstate == displays.statsdisplay) then
     -- display stats information for current pokemon
-    sspr(0,0,128,128,5,12,46,46)
-    print('no.'..state.currentpokemon, 5, 55)
+
+    print('no.'..state.currentpokemon, 5, 55, displays.textColor)
     drawstats()
     drawinfo()
   end
@@ -328,11 +371,6 @@ function _update()
   if (rpin(77) != 0) then
     formatMove(3, rpin(77), rpin(78), rpin(92))
     wpin(77, 0)
-  end
-  if (rpin(94) != 0) then
-    getPokemonSprite()
-    printh(rpin(94))
-    wpin(93, 0)
   end
 end
 __gfx__

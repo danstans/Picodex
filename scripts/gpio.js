@@ -33,6 +33,9 @@ function typesToByteArray(types) {
     return byteArray
 }
 
+
+
+
 function setUpMovesArrays(moves) {
   var movesOrder = []
   var levelOrder = []
@@ -146,7 +149,7 @@ function sendSpriteToLua(ByteArray) {
     pico8_gpio[93] = 1
     pico8_gpio[94] = --remainingIterations;
     while(pico8_gpio[93] == 1) {
-
+      console.log("waiting for our turn")
     }
   }
   console.log(`Sent a total of ${totalBytesSent} bytes`)
@@ -165,14 +168,14 @@ function onRender() {
             var heightByteArray = weightToByteArray(pokemon.Height);
             var typesByteArray = typesToByteArray(pokemon.Types);
             var movesByteArray = setUpMovesArrays(pokemon.Moves);
-            var spritesByteArray = pokemon.Sprites;
+            // var spritesByteArray = pokemon.Sprites;
             sendNameToLua(nameByteArray);
             sendWeightToLua(weightByteArray);
             sendHeightToLua(heightByteArray);
             sendStatsToLua(pokemon.Stats);
             sendMovesToLua(movesByteArray);
             sendTypesToLua(typesByteArray);
-            sendSpriteToLua(spritesByteArray);
+            // sendSpriteToLua(spritesByteArray);
         });
     }
     window.requestAnimationFrame(onRender);
