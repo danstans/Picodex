@@ -6,8 +6,6 @@ declare global {
   }
 }
 
-window.pico8_gpio = new Array(128).fill(0);
-
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz-";
 
 const pokemonCache: Record<number, PokemonData> = {};
@@ -20,7 +18,6 @@ interface PokemonData {
   types: string[];
   stats: number[];
   moves: MoveEntry[];
-  spriteUrl: string | null;
   spriteData: number[] | null;
 }
 
@@ -82,62 +79,102 @@ function typeToBytes(type: string): number[] {
   return Array.from(type, (ch) => ALPHABET.indexOf(ch));
 }
 
-// --- GPIO write helpers ---
+// --- Sprite transfer state ---
+
+const SPRITE_SIZE = 64;
+const BYTES_PER_CHUNK = 32; // pins 95-126
+const TOTAL_SPRITE_BYTES = (SPRITE_SIZE * SPRITE_SIZE) / 2; // 4bpp = 2048 bytes
+const TOTAL_CHUNKS = TOTAL_SPRITE_BYTES / BYTES_PER_CHUNK; // 64
+
+interface SpriteTransfer {
+  data: number[];
+  chunkIndex: number;
+}
+
+let spriteTransfer: SpriteTransfer | null = null;
+let handlingAck = false;
+
+// --- Proxy-based GPIO: instant chunk response on Lua ACK ---
+//
+// The key insight: PICO-8's peek/poke to GPIO addresses read/write the
+// pico8_gpio JS array in real-time. By intercepting Lua's ACK (pin 93→0)
+// via a Proxy setter, we can write the next chunk BEFORE the next Lua
+// receivespritechunk() iteration reads pin 93. This lets multiple chunks
+// transfer within a single PICO-8 frame instead of one per frame.
+
+const rawGpio: number[] = new Array(128).fill(0);
+
+window.pico8_gpio = new Proxy(rawGpio, {
+  set(target: number[], prop: string | symbol, value: number): boolean {
+    (target as any)[prop] = value;
+    // When Lua ACKs a sprite chunk (sets pin 93 to 0), immediately queue next
+    if (!handlingAck && prop === '93' && value === 0 && spriteTransfer) {
+      handlingAck = true;
+      spriteTransfer.chunkIndex++;
+      if (spriteTransfer.chunkIndex < TOTAL_CHUNKS) {
+        writeNextSpriteChunk();
+      } else {
+        spriteTransfer = null;
+      }
+      handlingAck = false;
+    }
+    return true;
+  },
+  get(target: number[], prop: string | symbol): unknown {
+    return (target as any)[prop];
+  },
+});
+
+// --- GPIO write helpers (write to rawGpio to bypass proxy overhead) ---
 
 function writeNameToGpio(bytes: number[]): void {
-  const gpio = window.pico8_gpio;
   for (let i = 0; i < bytes.length; i++) {
-    gpio[i + 8] = bytes[i];
+    rawGpio[i + 8] = bytes[i];
   }
-  gpio[2] = bytes.length - 1;
+  rawGpio[2] = bytes.length - 1;
 }
 
 function writeWeightToGpio(bytes: number[]): void {
-  const gpio = window.pico8_gpio;
   for (let i = 0; i < bytes.length; i++) {
-    gpio[i + 19] = bytes[i];
+    rawGpio[i + 19] = bytes[i];
   }
-  gpio[3] = bytes.length;
+  rawGpio[3] = bytes.length;
 }
 
 function writeHeightToGpio(bytes: number[]): void {
-  const gpio = window.pico8_gpio;
   for (let i = 0; i < bytes.length; i++) {
-    gpio[i + 21] = bytes[i];
+    rawGpio[i + 21] = bytes[i];
   }
-  gpio[4] = bytes.length;
+  rawGpio[4] = bytes.length;
 }
 
 // PokeAPI stat order: [0]=HP, [1]=ATK, [2]=DEF, [3]=SPA, [4]=SPD_SPECIAL, [5]=SPD
 // Lua reads: pin44=attack, pin43=defense, pin42=speed, pin45=hp
 function writeStatsToGpio(stats: number[]): void {
-  const gpio = window.pico8_gpio;
-  gpio[42] = stats[5]; // speed
-  gpio[43] = stats[2]; // defense
-  gpio[44] = stats[1]; // attack
-  gpio[45] = stats[0]; // hp
-  gpio[5] = 1;
+  rawGpio[42] = stats[5]; // speed
+  rawGpio[43] = stats[2]; // defense
+  rawGpio[44] = stats[1]; // attack
+  rawGpio[45] = stats[0]; // hp
+  rawGpio[5] = 1;
 }
 
 function writeTypesToGpio(types: string[]): void {
-  const gpio = window.pico8_gpio;
   const type1 = typeToBytes(types[0]);
   for (let i = 0; i < type1.length; i++) {
-    gpio[i + 23] = type1[i];
+    rawGpio[i + 23] = type1[i];
   }
-  gpio[6] = type1.length - 1;
+  rawGpio[6] = type1.length - 1;
 
   if (types.length > 1) {
     const type2 = typeToBytes(types[1]);
     for (let i = 0; i < type2.length; i++) {
-      gpio[i + 32] = type2[i];
+      rawGpio[i + 32] = type2[i];
     }
-    gpio[7] = type2.length - 1;
+    rawGpio[7] = type2.length - 1;
   }
 }
 
 function writeMovesToGpio(moves: MoveEntry[]): void {
-  const gpio = window.pico8_gpio;
   const sorted = moves
     .slice(0, 3)
     .sort((a, b) => a.level - b.level);
@@ -149,27 +186,24 @@ function writeMovesToGpio(moves: MoveEntry[]): void {
   sorted.forEach((move, idx) => {
     const bytes = nameToBytes(move.name);
     for (let i = 0; i < bytes.length; i++) {
-      gpio[i + namePins[idx]] = bytes[i];
+      rawGpio[i + namePins[idx]] = bytes[i];
     }
-    gpio[readyPins[idx]] = bytes.length;
-    gpio[levelPins[idx]] = move.level;
+    rawGpio[readyPins[idx]] = bytes.length;
+    rawGpio[levelPins[idx]] = move.level;
   });
 }
 
 // --- Sprite processing ---
 
-const SPRITE_SIZE = 64;
-const BYTES_PER_CHUNK = 32; // pins 95-126
-const TOTAL_SPRITE_BYTES = (SPRITE_SIZE * SPRITE_SIZE) / 2; // 4bpp = 2048 bytes
-const TOTAL_CHUNKS = TOTAL_SPRITE_BYTES / BYTES_PER_CHUNK; // 64
-
-interface SpriteTransfer {
-  data: number[];
-  chunkIndex: number;
-  waitingForAck: boolean;
+function writeNextSpriteChunk(): void {
+  if (!spriteTransfer) return;
+  const offset = spriteTransfer.chunkIndex * BYTES_PER_CHUNK;
+  for (let i = 0; i < BYTES_PER_CHUNK; i++) {
+    rawGpio[95 + i] = spriteTransfer.data[offset + i] ?? 0;
+  }
+  rawGpio[94] = TOTAL_CHUNKS - spriteTransfer.chunkIndex;
+  rawGpio[93] = 1; // signal: chunk ready (direct write, no proxy re-trigger)
 }
-
-let spriteTransfer: SpriteTransfer | null = null;
 
 function processSprite(imageData: ImageData): number[] {
   const pixels = imageData.data;
@@ -198,8 +232,6 @@ function loadSpriteImage(url: string): Promise<number[] | null> {
       canvas.width = SPRITE_SIZE;
       canvas.height = SPRITE_SIZE;
       const ctx = canvas.getContext("2d")!;
-      // Smooth downscaling from high-res source captures more detail
-      // at 32x32 — PICO-8 palette quantization adds the retro feel
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, SPRITE_SIZE, SPRITE_SIZE);
@@ -212,56 +244,13 @@ function loadSpriteImage(url: string): Promise<number[] | null> {
 }
 
 function startSpriteTransfer(data: number[]): void {
-  const gpio = window.pico8_gpio;
-  // Signal to Lua that a new sprite transfer is starting
-  gpio[93] = 0;
-  gpio[94] = TOTAL_CHUNKS;
-  spriteTransfer = {
-    data,
-    chunkIndex: 0,
-    waitingForAck: false,
-  };
-}
-
-function processSpriteTransfer(): void {
-  if (!spriteTransfer) return;
-  const gpio = window.pico8_gpio;
-
-  if (spriteTransfer.waitingForAck) {
-    // Wait for Lua to acknowledge (set pin 93 = 0)
-    if (gpio[93] === 0) {
-      spriteTransfer.waitingForAck = false;
-      spriteTransfer.chunkIndex++;
-      if (spriteTransfer.chunkIndex >= TOTAL_CHUNKS) {
-        spriteTransfer = null; // transfer complete
-        return;
-      }
-    } else {
-      return; // still waiting
-    }
-  }
-
-  // Write next chunk: 32 bytes to pins 95-126
-  const offset = spriteTransfer.chunkIndex * BYTES_PER_CHUNK;
-  for (let i = 0; i < BYTES_PER_CHUNK; i++) {
-    gpio[95 + i] = spriteTransfer.data[offset + i] ?? 0;
-  }
-  gpio[94] = TOTAL_CHUNKS - spriteTransfer.chunkIndex; // chunks remaining (including this one)
-  gpio[93] = 1; // signal: chunk ready for Lua
-  spriteTransfer.waitingForAck = true;
+  rawGpio[93] = 0;
+  rawGpio[94] = TOTAL_CHUNKS;
+  spriteTransfer = { data, chunkIndex: 0 };
+  writeNextSpriteChunk(); // write first chunk immediately
 }
 
 // --- PokeAPI ---
-
-function getSpriteUrl(sprites: Record<string, unknown>): string | null {
-  // Prefer highest resolution source — smooth downscaling to 32x32
-  // produces crisper results than nearest-neighbor from small sprites
-  const other = sprites.other as Record<string, Record<string, string>> | undefined;
-  const home = other?.home?.front_default;                    // 512x512
-  const artwork = other?.["official-artwork"]?.front_default; // 475x475
-  const fallback = sprites.front_default as string | undefined; // 96x96
-  return home || artwork || fallback || null;
-}
 
 async function fetchPokemon(id: number): Promise<PokemonData | null> {
   if (pokemonCache[id]) return pokemonCache[id];
@@ -294,7 +283,6 @@ async function fetchPokemon(id: number): Promise<PokemonData | null> {
       types: data.types.map((t: { type: { name: string } }) => t.type.name),
       stats: data.stats.map((s: { base_stat: number }) => s.base_stat),
       moves,
-      spriteUrl: getSpriteUrl(data.sprites),
       spriteData: null,
     };
 
@@ -314,8 +302,8 @@ function wrapId(id: number): number {
 
 async function precachePokemon(id: number): Promise<void> {
   const pokemon = await fetchPokemon(id);
-  if (!pokemon || pokemon.spriteData || !pokemon.spriteUrl) return;
-  const spriteData = await loadSpriteImage(pokemon.spriteUrl);
+  if (!pokemon || pokemon.spriteData) return;
+  const spriteData = await loadSpriteImage(`./sprites/${id}.png`);
   if (spriteData) pokemon.spriteData = spriteData;
 }
 
@@ -329,17 +317,17 @@ function precacheNeighbors(id: number): void {
 let lastPokemon = 0;
 
 function onRender(): void {
-  const currentPokemon = window.pico8_gpio[1];
+  const currentPokemon = rawGpio[1];
   if (lastPokemon !== currentPokemon) {
     lastPokemon = currentPokemon;
     // Cancel any in-progress sprite transfer
     spriteTransfer = null;
-    window.pico8_gpio[93] = 0;
+    rawGpio[93] = 0;
 
     fetchPokemon(currentPokemon).then((pokemon) => {
       if (!pokemon) return;
       // Don't send data if user already moved to another pokemon
-      if (window.pico8_gpio[1] !== currentPokemon) return;
+      if (rawGpio[1] !== currentPokemon) return;
 
       writeNameToGpio(nameToBytes(pokemon.name));
       writeWeightToGpio(weightToBytes(pokemon.weight));
@@ -351,11 +339,11 @@ function onRender(): void {
       // Start sprite transfer (use cached data if available)
       if (pokemon.spriteData) {
         startSpriteTransfer(pokemon.spriteData);
-      } else if (pokemon.spriteUrl) {
-        loadSpriteImage(pokemon.spriteUrl).then((spriteData) => {
+      } else {
+        loadSpriteImage(`./sprites/${currentPokemon}.png`).then((spriteData) => {
           if (!spriteData) return;
           pokemon.spriteData = spriteData;
-          if (window.pico8_gpio[1] !== currentPokemon) return;
+          if (rawGpio[1] !== currentPokemon) return;
           startSpriteTransfer(spriteData);
         });
       }
@@ -365,10 +353,8 @@ function onRender(): void {
     });
   }
 
-  // Process multiple sprite chunks per frame to reduce transfer time
-  for (let i = 0; i < 8; i++) {
-    processSpriteTransfer();
-  }
+  // No manual processSpriteTransfer() needed — the Proxy handles it
+  // automatically when Lua ACKs each chunk
 
   requestAnimationFrame(onRender);
 }

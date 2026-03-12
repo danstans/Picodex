@@ -377,7 +377,7 @@ function _update()
     formatMove(3, rpin(77), rpin(78), rpin(92))
     wpin(77, 0)
   end
-  for i=1,8 do
+  for i=1,64 do
     receivespritechunk()
   end
 end
